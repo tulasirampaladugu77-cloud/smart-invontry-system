@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockFlow · Inventory Manifest</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F8FA;
+    --paper-raised:#FFFFFF;
+    --grid:#DCE7F0;
+    --grid-strong:#C3D6E5;
+    --ink:#142334;
+    --ink-soft:#54697D;
+    --rail:#0F1D2B;
+    --go:#1E8F63;
+    --go-tint:#E3F4EC;
+    --hold:#B9800F;
+    --hold-tint:#FBF0DA;
+    --stop:#C6431C;
+    --stop-tint:#FBE7DE;
+    --focus:#2F6FED;
+    --focus-tint:#E7EFFE;
+    --radius:6px;
+    --shadow:0 1px 0 rgba(15,29,43,0.04);
+  }
+  body.dark{
+    --paper:#0E1620;
+    --paper-raised:#141F2C;
+    --grid:#22323F;
+    --grid-strong:#2C4356;
+    --ink:#E9F0F6;
+    --ink-soft:#8FA5B8;
+    --rail:#080D14;
+    --go-tint:#122A21;
+    --hold-tint:#2B2213;
+    --stop-tint:#2B1811;
+    --focus-tint:#132538;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{-webkit-font-smoothing:antialiased;}
+  body{
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    transition:background .25s ease, color .2s ease;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:34px 34px;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  ::selection{ background:var(--focus-tint); }
+  :focus-visible{ outline:2px solid var(--focus); outline-offset:2px; }
+  a{ color:inherit; }
+
+  /* ---------- sidebar ---------- */
+  .sidebar{
+    position:fixed; top:0; left:0; width:250px; height:100vh;
+    background:var(--rail); color:#DCE7F0;
+    padding:26px 0 20px; overflow-y:auto; z-index:20;
+    border-right:1px solid rgba(255,255,255,0.06);
+  }
+  .brand{ display:flex; align-items:baseline; gap:2px; padding:0 22px 30px; font-size:21px; font-weight:700; }
+  .brand .dim{ color:#5C7185; font-weight:500; }
+  .brand .mono{ font-size:11px; color:#5C7185; margin-left:8px; align-self:center; }
+  .menu{ list-style:none; }
+  .menu li{
+    position:relative; padding:13px 22px 13px 26px; display:flex; align-items:center; gap:13px;
+    font-weight:500; font-size:14.5px; color:#9FB3C4; cursor:pointer;
+    transition:background .15s ease, color .15s ease; border-left:3px solid transparent;
+  }
+  .menu li i{ width:18px; font-size:1rem; text-align:center; }
+  .menu li:hover{ background:rgba(255,255,255,0.04); color:#EAF1F7; }
+  .menu li.active{ background:rgba(47,111,237,0.12); color:#fff; border-left-color:var(--focus); }
+
+  /* ---------- main ---------- */
+  .main{ margin-left:250px; padding:30px 34px 24px; }
+  .topbar{ display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:14px; margin-bottom:26px; }
+  .topbar h1{ font-size:26px; font-weight:700; letter-spacing:-.2px; }
+  .topbar p{ color:var(--ink-soft); margin-top:3px; font-size:14px; }
+  .top-actions{ display:flex; gap:10px; }
+  .toggle{
+    background:var(--paper-raised); color:var(--ink); border:1px solid var(--grid-strong);
+    padding:9px 15px; border-radius:var(--radius); font-weight:600; font-size:13.5px;
+    cursor:pointer; display:flex; align-items:center; gap:8px; transition:.15s;
+  }
+  .toggle:hover{ border-color:var(--focus); color:var(--focus); }
+
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  /* ---------- ticket stat cards ---------- */
+  .tickets{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
+  .ticket{
+    position:relative; background:var(--paper-raised); border:1px solid var(--grid-strong);
+    border-radius:var(--radius); padding:24px 18px 18px; overflow:hidden; box-shadow:var(--shadow);
+  }
+  .ticket::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:9px;
+    background-image:radial-gradient(circle, var(--paper) 2.4px, transparent 2.6px);
+    background-size:14px 9px; background-position:5px -2px; border-bottom:1px dashed var(--grid-strong);
+  }
+  .ticket .tag{ font-size:11.5px; color:var(--ink-soft); }
+  .ticket .value{ font-size:29px; font-weight:700; margin:9px 0 5px; font-variant-numeric:tabular-nums; }
+  .ticket .trend{ font-size:12.5px; font-weight:500; }
+  .go{ color:var(--go); } .hold{ color:var(--hold); } .stop{ color:var(--stop); } .focus-c{ color:var(--focus); }
+
+  .section{ display:grid; grid-template-columns:1.3fr 1fr; gap:18px; }
+  .panel{
+    background:var(--paper-raised); border:1px solid var(--grid-strong); border-radius:var(--radius);
+    padding:20px 20px 18px; box-shadow:var(--shadow); margin-bottom:18px;
+  }
+  .panel h2{
+    font-size:15.5px; font-weight:600; display:flex; align-items:center; justify-content:space-between;
+    gap:9px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px dashed var(--grid-strong);
+  }
+  .panel h2 .htitle{ display:flex; align-items:center; gap:9px; }
+  .panel h2 i{ color:var(--focus); font-size:14px; }
+  .link-btn{ background:none; border:none; color:var(--focus); font-size:12.5px; font-weight:600; cursor:pointer; }
+
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+  .search{
+    flex:1; min-width:180px; padding:10px 14px; font-size:13.5px;
+    border:1px solid var(--grid-strong); border-bottom:2px solid var(--grid-strong);
+    border-radius:4px; background:var(--paper); color:var(--ink); transition:border-color .15s ease;
+  }
+  .search:focus{ border-bottom-color:var(--focus); }
+  .btn{
+    border:1px solid var(--ink); background:var(--ink); color:var(--paper-raised);
+    padding:9px 15px; border-radius:4px; font-size:13.5px; font-weight:600;
+    cursor:pointer; display:inline-flex; align-items:center; gap:7px; transition:.15s; white-space:nowrap;
+  }
+  .btn:hover{ background:var(--focus); border-color:var(--focus); }
+  .btn-outline{ background:transparent; color:var(--ink); border:1px solid var(--grid-strong); }
+  .btn-outline:hover{ border-color:var(--focus); color:var(--focus); background:transparent; }
+  .btn-danger{ background:transparent; border:1px solid var(--grid-strong); color:var(--stop); padding:6px 9px; }
+  .btn-danger:hover{ background:var(--stop-tint); border-color:var(--stop); }
+
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th,td{ padding:12px 8px; text-align:left; border-bottom:1px solid var(--grid); }
+  th{ color:var(--ink-soft); font-weight:600; font-size:12.5px; }
+  td.mono, th.mono{ font-family:'IBM Plex Mono',monospace; }
+  .clickable-row{ cursor:pointer; transition:background .1s ease; }
+  .clickable-row:hover{ background:var(--focus-tint); }
+  .clickable-row.stamped{ animation:stampFlash .6s ease; }
+  @keyframes stampFlash{ 0%{ background:var(--focus-tint); } 100%{ background:transparent; } }
+
+  .tag-badge{
+    display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 8px; border-radius:2px;
+    font-size:12px; font-weight:600; border-left:3px solid; background:var(--paper);
+  }
+  .tag-badge.in{ border-color:var(--go); color:var(--go); background:var(--go-tint); }
+  .tag-badge.low{ border-color:var(--hold); color:var(--hold); background:var(--hold-tint); }
+  .tag-badge.out{ border-color:var(--stop); color:var(--stop); background:var(--stop-tint); }
+  .tag-badge.active{ border-color:var(--go); color:var(--go); background:var(--go-tint); }
+  .tag-badge.hold{ border-color:var(--hold); color:var(--hold); background:var(--hold-tint); }
+
+  .stock-btn{
+    border:1px solid var(--grid-strong); background:var(--paper-raised); color:var(--ink);
+    width:26px; height:26px; border-radius:4px; cursor:pointer; font-size:11px; transition:.12s;
+  }
+  .stock-btn:hover{ border-color:var(--focus); color:var(--focus); }
+  .hint{ margin-top:10px; color:var(--ink-soft); font-size:12.5px; display:flex; gap:7px; align-items:center; }
+
+  .alert-row{
+    display:flex; justify-content:space-between; align-items:center; padding:10px 12px;
+    margin-bottom:8px; border-radius:4px; background:var(--paper); border:1px solid var(--grid);
+    font-size:13.5px; cursor:pointer; transition:.12s;
+  }
+  .alert-row:hover{ border-color:var(--focus); }
+  .alert-row.ok{ background:var(--go-tint); border-color:var(--go); color:var(--go); font-weight:600; justify-content:center; cursor:default; }
+
+  .warehouse-row{ display:flex; justify-content:space-between; margin:12px 0 5px; font-size:13.5px; font-weight:500; }
+  .progress{ height:6px; background:var(--grid); border-radius:6px; margin-bottom:12px; overflow:hidden; }
+  .progress div{ height:100%; background:var(--focus); border-radius:6px; transition:width .5s ease; }
+
+  .footer{ text-align:center; margin-top:34px; color:var(--ink-soft); font-size:12.5px; }
+
+  /* ---------- inline forms ---------- */
+  .form-inline{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; background:var(--paper);
+    border:1px dashed var(--grid-strong); border-radius:6px; padding:14px; margin-bottom:16px;
+  }
+  .form-inline .field{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-soft); }
+  .form-inline input, .form-inline select{
+    padding:8px 10px; border:1px solid var(--grid-strong); border-radius:4px;
+    background:var(--paper-raised); color:var(--ink); font-size:13.5px; min-width:120px;
+  }
+
+  /* ---------- chips ---------- */
+  .chip-group{ display:flex; gap:8px; margin-bottom:16px; }
+  .chip{
+    padding:7px 14px; border-radius:20px; border:1px solid var(--grid-strong); background:var(--paper-raised);
+    font-size:13px; font-weight:600; cursor:pointer; color:var(--ink-soft); transition:.15s;
+  }
+  .chip.active{ background:var(--ink); color:var(--paper-raised); border-color:var(--ink); }
+
+  /* ---------- warehouses ---------- */
+  .wh-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
+  .wh-card{
+    background:var(--paper-raised); border:1px solid var(--grid-strong); border-radius:6px;
+    padding:18px; cursor:pointer; transition:.15s; position:relative;
+  }
+  .wh-card:hover{ border-color:var(--focus); }
+  .wh-card .wh-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+  .wh-card .wh-name{ font-weight:600; font-size:14.5px; }
+  .wh-card .wh-sub{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .wh-card .wh-cap{ font-size:22px; font-weight:700; margin:4px 0; }
+
+  /* ---------- reports ---------- */
+  .report-grid{ display:grid; grid-template-columns:1.3fr 1fr; gap:18px; }
+  .bar-row{ margin-bottom:12px; }
+  .bar-row .label{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; }
+  .bar-track{ height:9px; background:var(--grid); border-radius:6px; overflow:hidden; }
+  .bar-fill{ height:100%; background:var(--focus); border-radius:6px; transition:width .5s ease; }
+  .donut-wrap{ display:flex; align-items:center; gap:22px; }
+  .donut{ width:130px; height:130px; border-radius:50%; flex-shrink:0; transition:background 0.4s ease; }
+  .legend{ display:flex; flex-direction:column; gap:10px; font-size:13.5px; }
+  .legend .dot{ width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:8px; }
+  .stat-line{ display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px dashed var(--grid); font-size:14px; }
+  .stat-line:last-child{ border-bottom:none; }
+
+  /* ---------- settings ---------- */
+  .settings-row{ display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px dashed var(--grid-strong); gap:20px; }
+  .settings-row:last-child{ border-bottom:none; }
+  .settings-row .label{ font-weight:600; font-size:14px; }
+  .settings-row .desc{ font-size:12.5px; color:var(--ink-soft); margin-top:3px; }
+  .switch{ position:relative; display:inline-block; width:40px; height:22px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider{ position:absolute; cursor:pointer; inset:0; background:var(--grid-strong); border-radius:22px; transition:.2s; }
+  .slider::before{ content:""; position:absolute; height:16px; width:16px; left:3px; top:3px; background:white; border-radius:50%; transition:.2s; }
+  input:checked + .slider{ background:var(--focus); }
+  input:checked + .slider::before{ transform:translateX(18px); }
+  .num-input{ width:80px; padding:8px 10px; border:1px solid var(--grid-strong); border-radius:4px; background:var(--paper); color:var(--ink); font-size:14px; }
+
+  /* ---------- toasts ---------- */
+  .toast-stack{ position:fixed; bottom:22px; right:22px; display:flex; flex-direction:column; gap:8px; z-index:100; }
+  .toast{
+    background:var(--ink); color:var(--paper); padding:11px 16px 11px 14px; border-radius:4px; font-size:13px;
+    display:flex; align-items:center; gap:9px; box-shadow:0 6px 20px rgba(0,0,0,.18);
+    animation:toastIn .22s ease; border-left:3px solid var(--focus);
+  }
+  .toast.go{ border-left-color:var(--go); }
+  .toast.stop{ border-left-color:var(--stop); }
+  @keyframes toastIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:translateY(0); } }
+  .toast.leaving{ animation:toastOut .18s ease forwards; }
+  @keyframes toastOut{ to{ opacity:0; transform:translateY(4px); } }
+
+  /* ---------- drawer ---------- */
+  .scrim{ position:fixed; inset:0; background:rgba(10,16,24,.35); z-index:29; opacity:0; pointer-events:none; transition:opacity .18s ease; }
+  .scrim.open{ opacity:1; pointer-events:auto; }
+  .drawer{
+    position:fixed; top:0; right:0; height:100vh; width:340px; max-width:88vw; background:var(--paper-raised);
+    z-index:30; padding:24px 22px; transform:translateX(100%); transition:transform .22s ease; border-left:1px solid var(--grid-strong);
+  }
+  .drawer.open{ transform:translateX(0); }
+  .drawer-close{ background:none; border:none; font-size:16px; color:var(--ink-soft); cursor:pointer; float:right; padding:4px; }
+  .drawer-close:hover{ color:var(--stop); }
+  .drawer h3{ font-size:19px; margin-bottom:2px; }
+  .drawer .sku{ color:var(--ink-soft); font-size:12.5px; margin-bottom:22px; }
+  .drawer-row{ display:flex; justify-content:space-between; padding:11px 0; border-bottom:1px dashed var(--grid); font-size:14px; }
+  .drawer-row span:first-child{ color:var(--ink-soft); }
+  .drawer .value-lg{ font-size:34px; font-weight:700; margin:18px 0 4px; font-variant-numeric:tabular-nums; }
+  .drawer .status-line{ margin-bottom:18px; }
+
+  @media(max-width:1024px){
+    .tickets{ grid-template-columns:repeat(2,1fr); }
+    .section{ grid-template-columns:1fr; }
+    .report-grid{ grid-template-columns:1fr; }
+  }
+  @media(max-width:700px){
+    .sidebar{ width:64px; padding:20px 0; }
+    .brand{ font-size:0; padding:0 0 26px; justify-content:center; }
+    .brand .dim{ font-size:20px; } .brand .mono{ display:none; }
+    .menu li{ font-size:0; justify-content:center; padding:15px 0; border-left:none; border-top:3px solid transparent; }
+    .menu li.active{ border-left:none; border-top-color:var(--focus); }
+    .menu li i{ font-size:1.25rem; }
+    .main{ margin-left:64px; padding:20px 16px; }
+    .tickets{ grid-template-columns:1fr; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ---------- read-only mode (buyer role) ---------- */
+  body.read-only .edit-only{ display:none !important; }
+
+  /* ---------- topbar user chip ---------- */
+  .user-chip{
+    display:flex; align-items:center; gap:9px; font-size:13px; color:var(--ink-soft);
+    padding:8px 14px; border:1px solid var(--grid-strong); border-radius:20px; background:var(--paper-raised);
+  }
+  .user-chip b{ color:var(--ink); }
+  .user-chip .role-tag{ font-size:11px; padding:3px 9px; border-radius:20px; background:var(--focus-tint); color:var(--focus); font-weight:600; }
+
+  /* ---------- login screen ---------- */
+  .login-screen{
+    position:fixed; inset:0; z-index:200; background:var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:34px 34px;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .login-card{
+    position:relative; width:430px; max-width:100%; background:var(--paper-raised);
+    border:1px solid var(--grid-strong); border-radius:8px; padding:34px 30px 28px;
+    box-shadow:0 24px 60px rgba(15,29,43,.14); overflow:hidden;
+  }
+  .login-card::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:10px;
+    background-image:radial-gradient(circle, var(--paper) 2.6px, transparent 2.8px);
+    background-size:15px 10px; background-position:6px -2px; border-bottom:1px dashed var(--grid-strong);
+  }
+  .login-card h2{ font-size:20px; font-weight:700; margin:6px 0 4px; }
+  .login-card .desc{ color:var(--ink-soft); font-size:13.5px; margin-bottom:20px; }
+  .role-grid{ display:flex; flex-direction:column; gap:9px; }
+  .role-card{
+    display:flex; align-items:center; gap:14px; text-align:left; width:100%;
+    padding:13px 14px; border:1px solid var(--grid-strong); border-radius:6px; background:var(--paper);
+    cursor:pointer; transition:.15s; color:var(--ink); font-family:inherit;
+  }
+  .role-card i{ font-size:17px; color:var(--ink-soft); width:20px; text-align:center; }
+  .role-card .rtext{ display:flex; flex-direction:column; gap:2px; }
+  .role-card b{ font-size:14px; }
+  .role-card span{ font-size:12px; color:var(--ink-soft); }
+  .role-card:hover{ border-color:var(--focus); }
+  .role-card.selected{ border-color:var(--focus); background:var(--focus-tint); }
+  .role-card.selected i{ color:var(--focus); }
+  .login-field{ margin-top:18px; }
+  .login-field label{ font-size:12px; color:var(--ink-soft); display:block; margin-bottom:5px; }
+  .login-field input{
+    width:100%; padding:10px 12px; border:1px solid var(--grid-strong); border-radius:4px;
+    background:var(--paper); color:var(--ink); font-size:14px;
+  }
+  .login-error{ color:var(--stop); font-size:12.5px; margin-top:10px; display:none; align-items:center; gap:6px; }
+
+  /* ---------- buyer: buying / cart / orders ---------- */
+  body:not(.read-only) .buyer-only{ display:none !important; }
+  .buy-cell{ display:flex; gap:6px; align-items:center; justify-content:flex-end; }
+  .qty-input{
+    width:58px; padding:6px 8px; border:1px solid var(--grid-strong); border-radius:4px;
+    background:var(--paper); color:var(--ink); font-size:13px; font-family:'IBM Plex Mono',monospace;
+  }
+  .btn-sm{ padding:6px 11px; font-size:12.5px; }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; background:var(--ink); border-color:var(--ink); }
+  .cart-badge{
+    margin-left:auto; min-width:20px; height:20px; padding:0 6px; border-radius:20px;
+    background:var(--focus); color:#fff; font-size:11px; font-weight:700;
+    display:none; align-items:center; justify-content:center;
+  }
+  .cart-badge.show{ display:inline-flex; }
+  .cart-line{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:14px 0; border-bottom:1px dashed var(--grid-strong); flex-wrap:wrap; }
+  .cart-line:last-of-type{ border-bottom:none; }
+  .cart-line .cl-name{ font-weight:600; font-size:14.5px; }
+  .cart-line .cl-sub{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .cart-line .cl-controls{ display:flex; align-items:center; gap:8px; }
+  .cart-line .cl-total{ min-width:90px; text-align:right; font-weight:600; }
+  .cart-summary{ margin-top:16px; padding:16px; background:var(--paper); border:1px dashed var(--grid-strong); border-radius:6px; }
+  .cart-summary .stat-line{ padding:6px 0; }
+  .cart-summary .grand{ font-size:18px; font-weight:700; border-bottom:none; }
+  .empty-state{ text-align:center; padding:34px 10px; color:var(--ink-soft); font-size:14px; }
+  .empty-state i{ font-size:28px; margin-bottom:10px; display:block; color:var(--grid-strong); }
+
+  /* ---------- delivery details + live tracking ---------- */
+  .drawer{ overflow-y:auto; }
+  .table-wrap{ overflow-x:auto; }
+  .tag-badge.ship{ border-color:var(--focus); color:var(--focus); background:var(--focus-tint); }
+  .form-title{ font-size:15px; font-weight:600; margin-top:22px; display:flex; gap:8px; align-items:center; }
+  .form-title i{ color:var(--focus); }
+  .delivery-form{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px; }
+  .delivery-form .field{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-soft); }
+  .delivery-form .full{ grid-column:1 / -1; }
+  .delivery-form input, .delivery-form textarea{
+    padding:9px 11px; border:1px solid var(--grid-strong); border-radius:4px; background:var(--paper);
+    color:var(--ink); font-size:13.5px; font-family:inherit;
+  }
+  .delivery-form textarea{ resize:vertical; min-height:64px; }
+  .form-error{ color:var(--stop); font-size:12.5px; margin-top:10px; display:none; gap:6px; align-items:center; }
+  .loc-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-soft); }
+
+  .track{ margin:14px 0 16px; }
+  .steps{ display:flex; margin:6px 0 4px; }
+  .step{ flex:1; text-align:center; font-size:11.5px; color:var(--ink-soft); position:relative; padding:0 2px; }
+  .step::before{ content:""; position:absolute; top:13px; left:-50%; width:100%; height:2px; background:var(--grid-strong); z-index:0; }
+  .step:first-child::before{ display:none; }
+  .step .dot{
+    width:28px; height:28px; border-radius:50%; margin:0 auto 6px; display:flex; align-items:center; justify-content:center;
+    background:var(--paper-raised); border:2px solid var(--grid-strong); font-size:11px; position:relative; z-index:1;
+  }
+  .step.done::before{ background:var(--go); }
+  .step.done .dot{ background:var(--go); border-color:var(--go); color:#fff; }
+  .step.done, .step.current{ color:var(--ink); }
+  .step.current{ font-weight:600; }
+  .step.current .dot{ border-color:var(--focus); color:var(--focus); animation:pulseDot 1.6s ease infinite; }
+  .step-time{ font-size:10.5px; color:var(--ink-soft); font-weight:400; margin-top:2px; }
+  @keyframes pulseDot{
+    0%{ box-shadow:0 0 0 0 rgba(47,111,237,.45); }
+    70%{ box-shadow:0 0 0 8px rgba(47,111,237,0); }
+    100%{ box-shadow:0 0 0 0 rgba(47,111,237,0); }
+  }
+  .route{ position:relative; height:8px; background:var(--grid); border-radius:6px; margin:34px 4px 8px; }
+  .route-fill{ height:100%; background:var(--focus); border-radius:6px; transition:width .95s linear; }
+  .courier{ position:absolute; top:-26px; transform:translateX(-50%); color:var(--focus); font-size:17px; transition:left .95s linear; }
+  .route-labels{ display:flex; justify-content:space-between; font-size:12px; color:var(--ink-soft); gap:10px; }
+  .eta{ margin-top:12px; font-size:13.5px; font-weight:600; display:flex; gap:8px; align-items:center; color:var(--focus); }
+  .deliver-box{
+    background:var(--paper); border:1px dashed var(--grid-strong); border-radius:6px;
+    padding:12px 14px; margin:4px 0 12px; font-size:13.5px; line-height:1.5;
+  }
+  .deliver-box .dl-title{ font-size:12px; color:var(--ink-soft); margin-bottom:4px; }
+  .map-link{ color:var(--focus); font-weight:600; font-size:12.5px; text-decoration:none; }
+  .map-link:hover{ text-decoration:underline; }
+  .del-sub{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .row-actions{ display:flex; gap:6px; justify-content:flex-end; flex-wrap:nowrap; }
+  @media(max-width:700px){ .delivery-form{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="brand" style="padding:0;">Stock<span class="dim">Flow</span><span class="mono">MFST-01</span></div>
+    <h2>Sign in to continue</h2>
+    <p class="desc">Choose how you're accessing the manifest.</p>
+    <div class="role-grid" id="roleGrid">
+      <button type="button" class="role-card" data-role="admin">
+        <i class="fas fa-user-shield"></i>
+        <span class="rtext"><b>Administrator</b><span>Full access, including system settings</span></span>
+      </button>
+      <button type="button" class="role-card" data-role="employer">
+        <i class="fas fa-user-tie"></i>
+        <span class="rtext"><b>Employer</b><span>Manage products, suppliers, warehouses & movement</span></span>
+      </button>
+      <button type="button" class="role-card" data-role="buyer">
+        <i class="fas fa-user"></i>
+        <span class="rtext"><b>Buyer</b><span>Browse products and stock levels only</span></span>
+      </button>
+    </div>
+    <div class="login-field">
+      <label for="loginName">Name</label>
+      <input type="text" id="loginName" placeholder="e.g. Jordan">
+    </div>
+    <button class="btn" id="loginBtn" style="width:100%; justify-content:center; margin-top:16px;">
+      <i class="fas fa-right-to-bracket"></i> Enter StockFlow
+    </button>
+    <p class="login-error" id="loginError"><i class="fas fa-circle-exclamation"></i> <span></span></p>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+<div class="sidebar">
+  <div class="brand">Stock<span class="dim">Flow</span><span class="mono">MFST-01</span></div>
+  <ul class="menu">
+    <li class="active" data-tab="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</li>
+    <li data-tab="products"><i class="fas fa-boxes"></i> Products</li>
+    <li data-tab="suppliers"><i class="fas fa-truck"></i> Suppliers</li>
+    <li data-tab="warehouses"><i class="fas fa-warehouse"></i> Warehouses</li>
+    <li data-tab="movement"><i class="fas fa-exchange-alt"></i> Movement</li>
+    <li data-tab="cart"><i class="fas fa-shopping-cart"></i> My cart <span class="cart-badge" id="cartBadge">0</span></li>
+    <li data-tab="orders"><i class="fas fa-receipt"></i> My orders</li>
+    <li data-tab="deliveries"><i class="fas fa-route"></i> Deliveries <span class="cart-badge" id="delBadge">0</span></li>
+    <li data-tab="reports"><i class="fas fa-file-alt"></i> Reports</li>
+    <li data-tab="settings"><i class="fas fa-cog"></i> Settings</li>
+  </ul>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1 id="viewTitle">Inventory dashboard</h1>
+      <p id="viewSub">Live stock levels across every warehouse</p>
+    </div>
+    <div class="top-actions">
+      <div class="user-chip" id="userChip"></div>
+      <button class="toggle" id="modeToggle"><i class="fas fa-moon"></i> <span id="modeLabel">Dark mode</span></button>
+      <button class="btn btn-outline" id="logoutBtn"><i class="fas fa-right-from-bracket"></i> Log out</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="tickets" id="statsCards">
+      <div class="ticket"><div class="tag mono">total products</div><div class="value" id="totalProducts">0</div><div class="trend go">↑ 12% this month</div></div>
+      <div class="ticket"><div class="tag mono">units on hand</div><div class="value" id="totalStock">0</div><div class="trend focus-c">across <span id="whCount">0</span> warehouses</div></div>
+      <div class="ticket"><div class="tag mono">low stock</div><div class="value hold" id="lowStockCount">0</div><div class="trend">below threshold</div></div>
+      <div class="ticket"><div class="tag mono">out of stock</div><div class="value stop" id="outStockCount">0</div><div class="trend">restock required</div></div>
+    </div>
+    <div class="section">
+      <div class="panel">
+        <h2><span class="htitle"><i class="fas fa-triangle-exclamation"></i> Stock alerts</span></h2>
+        <div id="alertsContainer"></div>
+      </div>
+      <div class="panel">
+        <h2><span class="htitle"><i class="fas fa-warehouse"></i> Warehouse capacity</span><button class="link-btn" data-goto="warehouses">Manage →</button></h2>
+        <div id="dashWarehouses"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-clock-rotate-left"></i> Recent movement</span><button class="link-btn" data-goto="movement">View all →</button></h2>
+      <table>
+        <thead><tr><th>Product</th><th>Type</th><th class="mono">Quantity</th><th class="mono">Date</th></tr></thead>
+        <tbody id="movementBodyMini"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PRODUCTS -->
+  <section class="view" id="view-products">
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-cube"></i> Product catalogue</span></h2>
+      <div class="actions">
+        <input class="search" id="search" placeholder="Search a product…" onkeyup="searchProduct()">
+        <button class="btn btn-outline edit-only" id="addProductToggle"><i class="fas fa-plus"></i> Add product</button>
+        <button class="btn btn-outline" id="sortStockBtn"><i class="fas fa-sort-amount-down"></i> Sort stock</button>
+      </div>
+      <div class="form-inline edit-only" id="addProductForm" style="display:none;">
+        <div class="field">Name<input type="text" id="npName" placeholder="e.g. Desk Lamp"></div>
+        <div class="field">Category
+          <select id="npCategory">
+            <option>Electronics</option><option>Accessories</option><option>Display</option><option>Misc</option>
+          </select>
+        </div>
+        <div class="field">Price (₹)<input type="number" id="npPrice" value="999" min="0"></div>
+        <div class="field">Starting stock<input type="number" id="npStock" value="20" min="0"></div>
+        <button class="btn" id="npSave"><i class="fas fa-check"></i> Save</button>
+        <button class="btn-outline btn" id="npCancel" style="background:transparent;color:var(--ink);"><i class="fas fa-xmark"></i> Cancel</button>
+      </div>
+      <table id="productTable">
+        <thead><tr><th>Product</th><th>Category</th><th class="mono">Price</th><th class="mono">Stock</th><th>Status</th><th class="edit-only" style="text-align:center;">Adjust</th><th class="edit-only"></th><th class="buyer-only" style="text-align:right;">Buy</th></tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <p class="hint" id="emptyHint" style="display:none;"><i class="fas fa-circle-info"></i> No products match that search.</p>
+      <p class="hint edit-only"><i class="fas fa-circle-info"></i> Click a row for details, use +/- to adjust stock.</p>
+      <p class="hint buyer-only"><i class="fas fa-circle-info"></i> Pick a quantity and add items to your cart, then check out from "My cart".</p>
+    </div>
+  </section>
+
+  <!-- CART (buyer) -->
+  <section class="view" id="view-cart">
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-shopping-cart"></i> Your cart</span><button class="link-btn" data-goto="products">Continue shopping →</button></h2>
+      <div id="cartBody"></div>
+    </div>
+  </section>
+
+  <!-- ORDERS (buyer) -->
+  <section class="view" id="view-orders">
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-receipt"></i> Order history</span></h2>
+      <div id="ordersBody"></div>
+    </div>
+  </section>
+
+  <!-- DELIVERIES (admin / employer) -->
+  <section class="view" id="view-deliveries">
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-route"></i> Deliveries</span></h2>
+      <div class="chip-group" id="deliveryChips">
+        <button class="chip active" data-filter="all">All</button>
+        <button class="chip" data-filter="active">In progress</button>
+        <button class="chip" data-filter="done">Delivered</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Order</th><th>Ordered by</th><th>Deliver to</th><th>Items</th><th class="mono">Total</th><th>Status</th><th></th></tr></thead>
+          <tbody id="deliveryBody"></tbody>
+        </table>
+      </div>
+      <p class="hint"><i class="fas fa-circle-info"></i> Status moves along automatically (simulated). Use "Advance" to push an order to its next stage.</p>
+    </div>
+  </section>
+
+  <!-- SUPPLIERS -->
+  <section class="view" id="view-suppliers">
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-truck"></i> Suppliers</span></h2>
+      <div class="actions">
+        <input class="search" id="supplierSearch" placeholder="Search a supplier…" onkeyup="searchSuppliers()">
+        <button class="btn btn-outline" id="addSupplierToggle"><i class="fas fa-plus"></i> Add supplier</button>
+      </div>
+      <div class="form-inline" id="addSupplierForm" style="display:none;">
+        <div class="field">Name<input type="text" id="nsName" placeholder="e.g. Nova Components"></div>
+        <div class="field">Category
+          <select id="nsCategory"><option>Electronics</option><option>Accessories</option><option>Display</option><option>Misc</option></select>
+        </div>
+        <div class="field">Lead time (days)<input type="number" id="nsLead" value="7" min="1"></div>
+        <button class="btn" id="nsSave"><i class="fas fa-check"></i> Save</button>
+        <button class="btn-outline btn" id="nsCancel" style="background:transparent;color:var(--ink);"><i class="fas fa-xmark"></i> Cancel</button>
+      </div>
+      <table>
+        <thead><tr><th>Supplier</th><th>Category</th><th class="mono">Lead time</th><th>Status</th><th>Contact</th><th></th></tr></thead>
+        <tbody id="supplierBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- WAREHOUSES -->
+  <section class="view" id="view-warehouses">
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-warehouse"></i> Warehouses</span></h2>
+      <div class="actions">
+        <button class="btn btn-outline" id="addWarehouseBtn"><i class="fas fa-plus"></i> Add warehouse</button>
+      </div>
+      <div class="wh-grid" id="warehouseGrid"></div>
+      <p class="hint"><i class="fas fa-circle-info"></i> Click a warehouse for a quick status check.</p>
+    </div>
+  </section>
+
+  <!-- MOVEMENT -->
+  <section class="view" id="view-movement">
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-clock-rotate-left"></i> Stock movement</span></h2>
+      <div class="chip-group" id="movementChips">
+        <button class="chip active" data-filter="all">All</button>
+        <button class="chip" data-filter="Stock In">Stock in</button>
+        <button class="chip" data-filter="Stock Out">Stock out</button>
+      </div>
+      <table>
+        <thead><tr><th>Product</th><th>Type</th><th class="mono">Quantity</th><th class="mono">Date</th><th>Warehouse</th></tr></thead>
+        <tbody id="movementBodyFull"></tbody>
+      </table>
+      <button class="btn" style="margin-top:14px;" id="addMovementBtn"><i class="fas fa-plus-circle"></i> Log movement</button>
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section class="view" id="view-reports">
+    <div class="report-grid">
+      <div class="panel">
+        <h2><span class="htitle"><i class="fas fa-layer-group"></i> Stock by category</span></h2>
+        <div id="categoryBars"></div>
+      </div>
+      <div class="panel">
+        <h2><span class="htitle"><i class="fas fa-chart-simple"></i> Stock health</span></h2>
+        <div class="donut-wrap">
+          <div class="donut" id="healthDonut"></div>
+          <div class="legend" id="healthLegend"></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-list"></i> Summary</span></h2>
+      <div id="reportSummary"></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="view-settings">
+    <div class="panel">
+      <h2><span class="htitle"><i class="fas fa-cog"></i> Preferences</span></h2>
+      <div class="settings-row">
+        <div><div class="label">Low stock threshold</div><div class="desc">Products at or below this many units are flagged low stock.</div></div>
+        <input type="number" class="num-input mono" id="thresholdInput" min="1" value="15">
+      </div>
+      <div class="settings-row">
+        <div><div class="label">Email alerts</div><div class="desc">Send a notice when a product runs out of stock.</div></div>
+        <label class="switch"><input type="checkbox" id="emailToggle" checked><span class="slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div><div class="label">Interface theme</div><div class="desc">Switch between light and dark mode.</div></div>
+        <label class="switch"><input type="checkbox" id="darkToggleSettings"><span class="slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div><div class="label">Reset demo data</div><div class="desc">Restore products, suppliers, warehouses and movement to their starting state.</div></div>
+        <button class="btn btn-outline" id="resetDemoBtn"><i class="fas fa-sync-alt"></i> Reset</button>
+      </div>
+      <button class="btn" id="saveSettingsBtn" style="margin-top:18px;"><i class="fas fa-check"></i> Save preferences</button>
+    </div>
+  </section>
+
+  <div class="footer">StockFlow <span class="mono">· inventory manifest system</span></div>
+</div>
+</div><!-- /appRoot -->
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <button class="drawer-close" id="drawerClose" aria-label="Close"><i class="fas fa-xmark"></i></button>
+  <div id="drawerBody"></div>
+</aside>
+
+<script>
+(function(){
+  let lowStockThreshold = 15;
+  let emailAlerts = true;
+
+  let currentUser = null; // { name, role }
+  let selectedRole = null;
+  const ROLE_TABS = {
+    admin:    ['dashboard','products','suppliers','warehouses','movement','deliveries','reports','settings'],
+    employer: ['dashboard','products','suppliers','warehouses','movement','deliveries','reports'],
+    buyer:    ['dashboard','products','cart','orders','reports']
+  };
+  let cart = [];      // [{ id, qty }]
+  let orders = [];    // placed orders this session
+  let nextOrderNo = 1001;
+  let openOrderNo = null;
+  function blankDraft(){ return { name:'', phone:'', address:'', city:'', pincode:'', notes:'', lat:null, lng:null }; }
+  let deliveryDraft = blankDraft();
+  function money(n){ return '₹' + Number(n).toLocaleString('en-IN'); }
+  const ROLE_LABELS = { admin:'Administrator', employer:'Employer', buyer:'Buyer' };
+
+  let products = [
+    { id:1, sku:'SKU-1001', name:'Laptop Pro', category:'Electronics', stock:125, price:65000 },
+    { id:2, sku:'SKU-1002', name:'Wireless Mouse', category:'Accessories', stock:18, price:799 },
+    { id:3, sku:'SKU-1003', name:'Keyboard X', category:'Accessories', stock:64, price:2499 },
+    { id:4, sku:'SKU-1004', name:'USB-C Cable', category:'Accessories', stock:0, price:399 },
+    { id:5, sku:'SKU-1005', name:'Monitor 27"', category:'Display', stock:9, price:14999 }
+  ];
+  let nextId = 6;
+
+  let suppliers = [
+    { id:1, name:'Nova Components', category:'Electronics', lead:5, status:'active', email:'orders@novacomp.com' },
+    { id:2, name:'Peak Peripherals', category:'Accessories', lead:8, status:'active', email:'sales@peakperi.com' },
+    { id:3, name:'BrightView Displays', category:'Display', lead:12, status:'hold', email:'contact@brightview.io' }
+  ];
+  let nextSupplierId = 4;
+
+  let warehouses = [
+    { id:1, name:'Main warehouse', capacity:82 },
+    { id:2, name:'Warehouse B', capacity:64 },
+    { id:3, name:'Warehouse C', capacity:47 }
+  ];
+  let nextWhId = 4;
+  const whNames = ['Warehouse D','Warehouse E','Warehouse F','North Depot','South Depot'];
+
+  let movementLog = [
+    { product:'Laptop Pro', type:'Stock In', qty:'+25', date:'01 Sep 2026', warehouse:'Main warehouse' },
+    { product:'Wireless Mouse', type:'Stock Out', qty:'-12', date:'01 Sep 2026', warehouse:'Warehouse B' },
+    { product:'Keyboard X', type:'Stock In', qty:'+40', date:'31 Aug 2026', warehouse:'Main warehouse' },
+    { product:'Monitor 27"', type:'Stock Out', qty:'-6', date:'30 Aug 2026', warehouse:'Warehouse C' },
+    { product:'USB-C Cable', type:'Stock Out', qty:'-30', date:'29 Aug 2026', warehouse:'Warehouse B' },
+    { product:'Laptop Pro', type:'Stock In', qty:'+10', date:'28 Aug 2026', warehouse:'Main warehouse' }
+  ];
+  let movementFilter = 'all';
+
+  const toastStack = document.getElementById('toastStack');
+  const drawer = document.getElementById('drawer');
+  const scrim = document.getElementById('scrim');
+
+  function today(){ return new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); }
+  function getStatus(stock){
+    if (stock <= 0) return { label:'Out of stock', cls:'out' };
+    if (stock < lowStockThreshold) return { label:'Low stock', cls:'low' };
+    return { label:'In stock', cls:'in' };
+  }
+
+  // ---- animated counters ----
+  function animateNumber(el, to){
+    const from = parseInt((el.textContent||'0').replace(/,/g,''), 10) || 0;
+    if (from === to){ el.textContent = to.toLocaleString(); return; }
+    const dur = 420, start = performance.now();
+    function step(now){
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(from + (to - from) * eased).toLocaleString();
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ---- toasts ----
+  function toast(message, tone){
+    const el = document.createElement('div');
+    el.className = 'toast' + (tone ? ' ' + tone : '');
+    el.innerHTML = `<i class="fas fa-tag"></i> ${message}`;
+    toastStack.appendChild(el);
+    setTimeout(() => { el.classList.add('leaving'); setTimeout(() => el.remove(), 200); }, 2200);
+  }
+
+  // ---- drawer ----
+  function openDrawer(p){
+    openOrderNo = null;
+    const st = getStatus(p.stock);
+    document.getElementById('drawerBody').innerHTML = `
+      <h3>${p.name}</h3>
+      <div class="sku mono">${p.sku}</div>
+      <div class="status-line"><span class="tag-badge ${st.cls}">${st.label}</span></div>
+      <div class="value-lg">${p.stock}</div>
+      <div class="drawer-row"><span>Category</span><span>${p.category}</span></div>
+      <div class="drawer-row"><span>Price</span><span class="mono">${money(p.price)}</span></div>
+      <div class="drawer-row"><span>Reorder point</span><span class="mono">${lowStockThreshold} units</span></div>
+      <div class="drawer-row"><span>Primary warehouse</span><span>${warehouses[0] ? warehouses[0].name : '—'}</span></div>
+      <div class="buyer-only" style="margin-top:20px;">
+        <button class="btn" style="width:100%;justify-content:center;" ${p.stock <= 0 ? 'disabled' : ''} onclick="addToCart(${p.id},1)"><i class="fas fa-cart-plus"></i> ${p.stock <= 0 ? 'Out of stock' : 'Add to cart'}</button>
+      </div>`;
+    drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); scrim.classList.add('open');
+  }
+  function closeDrawer(){ openOrderNo = null; drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); scrim.classList.remove('open'); }
+  document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+  scrim.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+  /* =========================================================
+     PRODUCTS
+  ========================================================= */
+  const tbody = document.getElementById('tableBody');
+  const searchInput = document.getElementById('search');
+  const emptyHint = document.getElementById('emptyHint');
+  let sortAsc = false;
+
+  function renderTable(flashId){
+    tbody.innerHTML = '';
+    products.forEach(p => {
+      const st = getStatus(p.stock);
+      const row = document.createElement('tr');
+      row.className = 'clickable-row';
+      row.tabIndex = 0;
+      row.innerHTML = `
+        <td>${p.name}</td><td>${p.category}</td><td class="mono">${money(p.price)}</td><td class="mono">${p.stock}</td>
+        <td><span class="tag-badge ${st.cls}">${st.label}</span></td>
+        <td class="edit-only" style="text-align:center;">
+          <button class="stock-btn" aria-label="Decrease stock" onclick="event.stopPropagation(); adjustStock(${p.id}, -5)"><i class="fas fa-minus"></i></button>
+          <button class="stock-btn" aria-label="Increase stock" onclick="event.stopPropagation(); adjustStock(${p.id}, 5)"><i class="fas fa-plus"></i></button>
+        </td>
+        <td class="edit-only" style="text-align:center;"><button class="btn-danger" aria-label="Remove product" onclick="event.stopPropagation(); removeProduct(${p.id})"><i class="fas fa-trash-alt"></i></button></td>
+        <td class="buyer-only" onclick="event.stopPropagation()">
+          <div class="buy-cell">
+            <input type="number" class="qty-input" id="qty-${p.id}" value="1" min="1" max="${p.stock}" ${p.stock <= 0 ? 'disabled' : ''} aria-label="Quantity for ${p.name}">
+            <button class="btn btn-sm" ${p.stock <= 0 ? 'disabled' : ''} onclick="addToCart(${p.id}, document.getElementById('qty-${p.id}').value)"><i class="fas fa-cart-plus"></i> ${p.stock <= 0 ? 'Sold out' : 'Add'}</button>
+          </div>
+        </td>`;
+      row.addEventListener('click', () => openDrawer(p));
+      row.addEventListener('keydown', e => { if (e.key === 'Enter') openDrawer(p); });
+      if (p.id === flashId) row.classList.add('stamped');
+      tbody.appendChild(row);
+    });
+    searchProduct();
+    refreshDashboard();
+  }
+
+  window.searchProduct = function(){
+    const val = (searchInput.value||'').toLowerCase();
+    const rows = tbody.querySelectorAll('tr');
+    let visible = 0;
+    rows.forEach(row => { const m = row.innerText.toLowerCase().includes(val); row.style.display = m ? '' : 'none'; if (m) visible++; });
+    emptyHint.style.display = (visible === 0 && rows.length > 0) ? 'flex' : 'none';
+  };
+
+  window.adjustStock = function(id, delta){
+    const prod = products.find(p => p.id === id);
+    if (!prod) return;
+    prod.stock = Math.max(0, prod.stock + delta);
+    logMovement(prod.name, delta, warehouses[0] ? warehouses[0].name : 'Main warehouse');
+    renderTable(id);
+    toast(`${prod.name} ${delta > 0 ? 'restocked' : 'adjusted'} to ${prod.stock} units`, delta > 0 ? 'go' : 'stop');
+  };
+
+  window.removeProduct = function(id){
+    const prod = products.find(p => p.id === id);
+    if (!prod) return;
+    products = products.filter(p => p.id !== id);
+    renderTable();
+    toast(`${prod.name} removed from catalogue`, 'stop');
+  };
+
+  document.getElementById('addProductToggle').addEventListener('click', () => {
+    const f = document.getElementById('addProductForm');
+    f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+  });
+  document.getElementById('npCancel').addEventListener('click', () => { document.getElementById('addProductForm').style.display = 'none'; });
+  document.getElementById('npSave').addEventListener('click', () => {
+    const name = document.getElementById('npName').value.trim();
+    const category = document.getElementById('npCategory').value;
+    const stock = Math.max(0, parseInt(document.getElementById('npStock').value, 10) || 0);
+    const price = Math.max(0, parseInt(document.getElementById('npPrice').value, 10) || 0);
+    if (!name){ toast('Give the product a name first', 'stop'); return; }
+    const p = { id:nextId, sku:`SKU-${1000+nextId}`, name, category, stock, price };
+    products.push(p); nextId++;
+    logMovement(name, stock, warehouses[0] ? warehouses[0].name : 'Main warehouse');
+    document.getElementById('npName').value = '';
+    document.getElementById('addProductForm').style.display = 'none';
+    renderTable(p.id);
+    toast(`${name} added to catalogue`, 'go');
+  });
+
+  document.getElementById('sortStockBtn').addEventListener('click', function(){
+    sortAsc = !sortAsc;
+    products.sort((a,b) => sortAsc ? a.stock - b.stock : b.stock - a.stock);
+    renderTable();
+    this.innerHTML = `<i class="fas fa-sort-amount-${sortAsc ? 'up' : 'down'}"></i> ${sortAsc ? 'Lowest first' : 'Sort stock'}`;
+  });
+
+  /* =========================================================
+     BUYER: CART + CHECKOUT + ORDERS
+  ========================================================= */
+  function updateCartBadge(){
+    const n = cart.reduce((s,c) => s + c.qty, 0);
+    const b = document.getElementById('cartBadge');
+    b.textContent = n;
+    b.classList.toggle('show', n > 0);
+  }
+
+  window.addToCart = function(id, qty){
+    const prod = products.find(p => p.id === id);
+    if (!prod) return;
+    qty = parseInt(qty, 10);
+    if (!qty || qty < 1){ toast('Enter a quantity of at least 1', 'stop'); return; }
+    const line = cart.find(c => c.id === id);
+    const inCart = line ? line.qty : 0;
+    const room = prod.stock - inCart;
+    if (room <= 0){ toast(`You already have all ${prod.stock} available ${prod.name} in your cart`, 'stop'); return; }
+    const add = Math.min(qty, room);
+    if (line) line.qty += add; else cart.push({ id, qty:add });
+    updateCartBadge();
+    if (add < qty) toast(`Only ${add} more ${prod.name} available — added ${add}`, 'stop');
+    else toast(`${add} × ${prod.name} added to cart`, 'go');
+  };
+
+  window.changeCartQty = function(id, delta){
+    const line = cart.find(c => c.id === id);
+    const prod = products.find(p => p.id === id);
+    if (!line || !prod) return;
+    const next = line.qty + delta;
+    if (next < 1){ removeFromCart(id); return; }
+    if (next > prod.stock){ toast(`Only ${prod.stock} ${prod.name} in stock`, 'stop'); return; }
+    line.qty = next;
+    renderCart(); updateCartBadge();
+  };
+
+  window.removeFromCart = function(id){
+    cart = cart.filter(c => c.id !== id);
+    renderCart(); updateCartBadge();
+  };
+
+  function renderCart(){
+    // drop lines for products that no longer exist, clamp to current stock
+    cart = cart.filter(c => products.some(p => p.id === c.id));
+    cart.forEach(c => { const p = products.find(x => x.id === c.id); c.qty = Math.min(c.qty, p.stock); });
+    cart = cart.filter(c => c.qty > 0);
+    updateCartBadge();
+    const body = document.getElementById('cartBody');
+    if (!cart.length){
+      body.innerHTML = '<div class="empty-state"><i class="fas fa-shopping-cart"></i>Your cart is empty. Browse products and add something.</div>';
+      return;
+    }
+    let total = 0, units = 0;
+    const lines = cart.map(c => {
+      const p = products.find(x => x.id === c.id);
+      const lineTotal = p.price * c.qty; total += lineTotal; units += c.qty;
+      return `<div class="cart-line">
+        <div><div class="cl-name">${p.name}</div><div class="cl-sub mono">${p.sku} · ${money(p.price)} each · ${p.stock} in stock</div></div>
+        <div class="cl-controls">
+          <button class="stock-btn" aria-label="Decrease quantity" onclick="changeCartQty(${p.id}, -1)"><i class="fas fa-minus"></i></button>
+          <span class="mono" style="min-width:24px;text-align:center;">${c.qty}</span>
+          <button class="stock-btn" aria-label="Increase quantity" onclick="changeCartQty(${p.id}, 1)"><i class="fas fa-plus"></i></button>
+          <span class="cl-total mono">${money(lineTotal)}</span>
+          <button class="btn-danger" aria-label="Remove from cart" onclick="removeFromCart(${p.id})"><i class="fas fa-trash-alt"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+    body.innerHTML = lines + `
+      <div class="cart-summary">
+        <div class="stat-line"><span>Items</span><span class="mono">${units}</span></div>
+        <div class="stat-line grand"><span>Total</span><span class="mono">${money(total)}</span></div>
+      </div>
+      ${deliveryFormHTML()}
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+        <button class="btn" id="checkoutBtn"><i class="fas fa-lock"></i> Place order</button>
+        <button class="btn btn-outline" id="clearCartBtn"><i class="fas fa-xmark"></i> Clear cart</button>
+      </div>`;
+    wireDeliveryForm();
+    document.getElementById('checkoutBtn').addEventListener('click', placeOrder);
+    document.getElementById('clearCartBtn').addEventListener('click', () => { cart = []; renderCart(); });
+  }
+
+  function checkout(){
+    if (!cart.length) return;
+    // re-validate against live stock
+    for (const c of cart){
+      const p = products.find(x => x.id === c.id);
+      if (!p || p.stock < c.qty){
+        toast(`${p ? p.name : 'An item'} no longer has enough stock — please review your cart`, 'stop');
+        renderCart();
+        return;
+      }
+    }
+    const whName = warehouses[0] ? warehouses[0].name : 'Main warehouse';
+    const items = cart.map(c => {
+      const p = products.find(x => x.id === c.id);
+      p.stock -= c.qty;
+      logMovement(p.name, -c.qty, whName);
+      return { name:p.name, sku:p.sku, qty:c.qty, price:p.price };
+    });
+    const total = items.reduce((s,i) => s + i.price * i.qty, 0);
+    const order = { no:'ORD-' + nextOrderNo++, date:today(), buyer: currentUser ? currentUser.name : 'Buyer', items, total };
+    orders.unshift(order);
+    cart = [];
+    updateCartBadge();
+    renderTable();
+    renderOrders();
+    toast(`Order ${order.no} placed — ${money(total)}`, 'go');
+    switchTab('orders');
+  }
+
+  function renderOrders(){
+    const body = document.getElementById('ordersBody');
+    if (!orders.length){
+      body.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i>No orders yet. Your purchases will appear here.</div>';
+      return;
+    }
+    body.innerHTML = orders.map(o => `
+      <div class="panel" style="margin-bottom:14px;">
+        <div class="stat-line" style="padding-top:0;"><span><b class="mono">${o.no}</b> · ${o.buyer}</span><span class="mono">${o.date}</span></div>
+        <table>
+          <thead><tr><th>Product</th><th class="mono">Qty</th><th class="mono">Price</th><th class="mono">Subtotal</th></tr></thead>
+          <tbody>${o.items.map(i => `<tr><td>${i.name}</td><td class="mono">${i.qty}</td><td class="mono">${money(i.price)}</td><td class="mono">${money(i.price * i.qty)}</td></tr>`).join('')}</tbody>
+        </table>
+        <div class="stat-line" style="border-bottom:none;"><b>Total</b><b class="mono">${money(o.total)}</b></div>
+      </div>`).join('');
+  }
+
+  /* =========================================================
+     SUPPLIERS
+  ========================================================= */
+  const supplierBody = document.getElementById('supplierBody');
+  const supplierSearch = document.getElementById('supplierSearch');
+
+  function renderSuppliers(){
+    supplierBody.innerHTML = '';
+    suppliers.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${s.name}</td><td>${s.category}</td><td class="mono">${s.lead} days</td>
+        <td><span class="tag-badge ${s.status}">${s.status === 'active' ? 'Active' : 'On hold'}</span></td>
+        <td class="mono">${s.email}</td>
+        <td style="text-align:center;"><button class="btn-danger" aria-label="Remove supplier" onclick="removeSupplier(${s.id})"><i class="fas fa-trash-alt"></i></button></td>`;
+      supplierBody.appendChild(tr);
+    });
+    searchSuppliers();
+  }
+
+  window.searchSuppliers = function(){
+    const val = (supplierSearch.value||'').toLowerCase();
+    supplierBody.querySelectorAll('tr').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(val) ? '' : 'none'; });
+  };
+
+  window.removeSupplier = function(id){
+    const s = suppliers.find(x => x.id === id);
+    suppliers = suppliers.filter(x => x.id !== id);
+    renderSuppliers();
+    if (s) toast(`${s.name} removed from suppliers`, 'stop');
+  };
+
+  document.getElementById('addSupplierToggle').addEventListener('click', () => {
+    const f = document.getElementById('addSupplierForm');
+    f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+  });
+  document.getElementById('nsCancel').addEventListener('click', () => { document.getElementById('addSupplierForm').style.display = 'none'; });
+  document.getElementById('nsSave').addEventListener('click', () => {
+    const name = document.getElementById('nsName').value.trim();
+    const category = document.getElementById('nsCategory').value;
+    const lead = Math.max(1, parseInt(document.getElementById('nsLead').value, 10) || 1);
+    if (!name){ toast('Give the supplier a name first', 'stop'); return; }
+    suppliers.push({ id:nextSupplierId, name, category, lead, status:'active', email: name.toLowerCase().replace(/[^a-z0-9]+/g,'') + '@supplier.com' });
+    nextSupplierId++;
+    document.getElementById('nsName').value = '';
+    document.getElementById('addSupplierForm').style.display = 'none';
+    renderSuppliers();
+    toast(`${name} added to suppliers`, 'go');
+  });
+
+  /* =========================================================
+     WAREHOUSES
+  ========================================================= */
+  const warehouseGrid = document.getElementById('warehouseGrid');
+  const dashWarehouses = document.getElementById('dashWarehouses');
+
+  function renderWarehouses(){
+    warehouseGrid.innerHTML = '';
+    warehouses.forEach((w, i) => {
+      const assigned = products.filter((p, idx) => idx % warehouses.length === i).length;
+      const card = document.createElement('div');
+      card.className = 'wh-card';
+      card.innerHTML = `
+        <div class="wh-top">
+          <div><div class="wh-name">${w.name}</div><div class="wh-sub mono">${assigned} SKUs assigned</div></div>
+          <button class="btn-danger" aria-label="Remove warehouse" onclick="event.stopPropagation(); removeWarehouse(${w.id})"><i class="fas fa-trash-alt"></i></button>
+        </div>
+        <div class="wh-cap mono">${w.capacity}%</div>
+        <div class="progress"><div style="width:${w.capacity}%"></div></div>`;
+      card.addEventListener('click', () => toast(`${w.name} is ${w.capacity}% full and holds ${assigned} SKUs`));
+      warehouseGrid.appendChild(card);
+    });
+
+    dashWarehouses.innerHTML = '';
+    warehouses.forEach(w => {
+      const row = document.createElement('div');
+      row.innerHTML = `<div class="warehouse-row"><span>${w.name}</span><b class="mono">${w.capacity}%</b></div><div class="progress"><div style="width:${w.capacity}%"></div></div>`;
+      dashWarehouses.appendChild(row);
+    });
+    document.getElementById('whCount').textContent = warehouses.length;
+  }
+
+  window.removeWarehouse = function(id){
+    const w = warehouses.find(x => x.id === id);
+    warehouses = warehouses.filter(x => x.id !== id);
+    renderWarehouses();
+    if (w) toast(`${w.name} removed`, 'stop');
+  };
+
+  document.getElementById('addWarehouseBtn').addEventListener('click', () => {
+    const name = whNames[Math.floor(Math.random() * whNames.length)] + ' ' + nextWhId;
+    warehouses.push({ id:nextWhId, name, capacity: Math.floor(Math.random() * 60) + 20 });
+    nextWhId++;
+    renderWarehouses();
+    toast(`${name} added`, 'go');
+  });
+
+  /* =========================================================
+     MOVEMENT
+  ========================================================= */
+  const movementBodyFull = document.getElementById('movementBodyFull');
+  const movementBodyMini = document.getElementById('movementBodyMini');
+
+  function logMovement(productName, delta, warehouseName){
+    const type = delta > 0 ? 'Stock In' : 'Stock Out';
+    movementLog.unshift({ product:productName, type, qty:(delta > 0 ? '+' : '') + delta, date:today(), warehouse:warehouseName });
+    if (movementLog.length > 30) movementLog.pop();
+  }
+
+  function renderMovementRows(tbodyEl, list){
+    tbodyEl.innerHTML = '';
+    list.forEach(m => {
+      const cls = m.type === 'Stock In' ? 'go' : 'stop';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${m.product}</td><td class="${cls}">${m.type}</td><td class="mono">${m.qty}</td><td class="mono">${m.date}</td>${tbodyEl===movementBodyFull ? `<td>${m.warehouse}</td>` : ''}`;
+      tbodyEl.appendChild(tr);
+    });
+  }
+
+  function renderMovementView(){
+    const list = movementLog.filter(m => movementFilter === 'all' || m.type === movementFilter);
+    renderMovementRows(movementBodyFull, list.slice(0, 20));
+  }
+  function renderMovementMini(){ renderMovementRows(movementBodyMini, movementLog.slice(0, 5)); }
+
+  document.querySelectorAll('#movementChips .chip').forEach(chip => {
+    chip.addEventListener('click', function(){
+      document.querySelectorAll('#movementChips .chip').forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+      movementFilter = this.dataset.filter;
+      renderMovementView();
+    });
+  });
+
+  document.getElementById('addMovementBtn').addEventListener('click', () => {
+    if (!products.length) { toast('Add a product first', 'stop'); return; }
+    const rand = products[Math.floor(Math.random() * products.length)];
+    const delta = Math.floor(Math.random() * 15) + 1;
+    const type = Math.random() > 0.4 ? 1 : -1;
+    const wh = warehouses.length ? warehouses[Math.floor(Math.random() * warehouses.length)].name : 'Main warehouse';
+    rand.stock = type > 0 ? rand.stock + delta : Math.max(0, rand.stock - delta);
+    logMovement(rand.name, type * delta, wh);
+    renderMovementView();
+    renderMovementMini();
+    refreshDashboard();
+    toast(`Logged ${type > 0 ? 'stock in' : 'stock out'} for ${rand.name}`);
+  });
+
+  /* =========================================================
+     REPORTS
+  ========================================================= */
+  function renderReports(){
+    const byCategory = {};
+    products.forEach(p => { byCategory[p.category] = (byCategory[p.category] || 0) + p.stock; });
+    const max = Math.max(1, ...Object.values(byCategory));
+    const bars = document.getElementById('categoryBars');
+    bars.innerHTML = '';
+    Object.entries(byCategory).forEach(([cat, total]) => {
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = `<div class="label"><span>${cat}</span><span class="mono">${total} units</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(total/max)*100}%"></div></div>`;
+      bars.appendChild(row);
+    });
+    if (!Object.keys(byCategory).length) bars.innerHTML = '<p class="hint">No products yet — add one from the Products tab.</p>';
+
+    const inCt = products.filter(p => p.stock >= lowStockThreshold).length;
+    const lowCt = products.filter(p => p.stock > 0 && p.stock < lowStockThreshold).length;
+    const outCt = products.filter(p => p.stock === 0).length;
+    const totalP = Math.max(1, products.length);
+    const inPct = (inCt/totalP)*100, lowPct = (lowCt/totalP)*100, outPct = (outCt/totalP)*100;
+    document.getElementById('healthDonut').style.background =
+      `conic-gradient(var(--go) 0% ${inPct}%, var(--hold) ${inPct}% ${inPct+lowPct}%, var(--stop) ${inPct+lowPct}% ${inPct+lowPct+outPct}%)`;
+    document.getElementById('healthLegend').innerHTML = `
+      <div><span class="dot" style="background:var(--go)"></span>In stock — ${inCt}</div>
+      <div><span class="dot" style="background:var(--hold)"></span>Low stock — ${lowCt}</div>
+      <div><span class="dot" style="background:var(--stop)"></span>Out of stock — ${outCt}</div>`;
+
+    const topCategory = Object.entries(byCategory).sort((a,b) => b[1]-a[1])[0];
+    document.getElementById('reportSummary').innerHTML = `
+      <div class="stat-line"><span>Total SKUs</span><span class="mono">${products.length}</span></div>
+      <div class="stat-line"><span>Total units on hand</span><span class="mono">${products.reduce((s,p)=>s+p.stock,0)}</span></div>
+      <div class="stat-line"><span>Best-stocked category</span><span>${topCategory ? topCategory[0] : '—'}</span></div>
+      <div class="stat-line"><span>Movements logged (30 latest)</span><span class="mono">${movementLog.length}</span></div>`;
+  }
+
+  /* =========================================================
+     SETTINGS
+  ========================================================= */
+  function renderSettingsForm(){
+    document.getElementById('thresholdInput').value = lowStockThreshold;
+    document.getElementById('emailToggle').checked = emailAlerts;
+    document.getElementById('darkToggleSettings').checked = document.body.classList.contains('dark');
+  }
+  document.getElementById('darkToggleSettings').addEventListener('change', function(){ setDarkMode(this.checked); });
+  document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+    lowStockThreshold = Math.max(1, parseInt(document.getElementById('thresholdInput').value, 10) || 15);
+    emailAlerts = document.getElementById('emailToggle').checked;
+    renderTable();
+    refreshDashboard();
+    toast('Preferences saved', 'go');
+  });
+  document.getElementById('resetDemoBtn').addEventListener('click', () => {
+    products = [
+      { id:1, sku:'SKU-1001', name:'Laptop Pro', category:'Electronics', stock:125, price:65000 },
+      { id:2, sku:'SKU-1002', name:'Wireless Mouse', category:'Accessories', stock:18, price:799 },
+      { id:3, sku:'SKU-1003', name:'Keyboard X', category:'Accessories', stock:64, price:2499 },
+      { id:4, sku:'SKU-1004', name:'USB-C Cable', category:'Accessories', stock:0, price:399 },
+      { id:5, sku:'SKU-1005', name:'Monitor 27"', category:'Display', stock:9, price:14999 }
+    ];
+    nextId = 6;
+    cart = []; orders = []; nextOrderNo = 1001;
+    updateCartBadge();
+    suppliers = [
+      { id:1, name:'Nova Components', category:'Electronics', lead:5, status:'active', email:'orders@novacomp.com' },
+      { id:2, name:'Peak Peripherals', category:'Accessories', lead:8, status:'active', email:'sales@peakperi.com' },
+      { id:3, name:'BrightView Displays', category:'Display', lead:12, status:'hold', email:'contact@brightview.io' }
+    ];
+    nextSupplierId = 4;
+    warehouses = [ { id:1, name:'Main warehouse', capacity:82 }, { id:2, name:'Warehouse B', capacity:64 }, { id:3, name:'Warehouse C', capacity:47 } ];
+    nextWhId = 4;
+    movementLog = [
+      { product:'Laptop Pro', type:'Stock In', qty:'+25', date:'01 Sep 2026', warehouse:'Main warehouse' },
+      { product:'Wireless Mouse', type:'Stock Out', qty:'-12', date:'01 Sep 2026', warehouse:'Warehouse B' },
+      { product:'Keyboard X', type:'Stock In', qty:'+40', date:'31 Aug 2026', warehouse:'Main warehouse' }
+    ];
+    searchInput.value = '';
+    renderTable(); renderSuppliers(); renderWarehouses(); renderMovementView(); renderMovementMini(); renderReports();
+    document.getElementById('sortStockBtn').innerHTML = '<i class="fas fa-sort-amount-down"></i> Sort stock';
+    toast('Demo data reset');
+  });
+
+  /* =========================================================
+     DASHBOARD refresh + NAVIGATION + MODE
+  ========================================================= */
+  function refreshDashboard(){
+    const total = products.reduce((s,p) => s + p.stock, 0);
+    const low = products.filter(p => p.stock > 0 && p.stock < lowStockThreshold).length;
+    const out = products.filter(p => p.stock === 0).length;
+    animateNumber(document.getElementById('totalProducts'), products.length);
+    animateNumber(document.getElementById('totalStock'), total);
+    animateNumber(document.getElementById('lowStockCount'), low);
+    animateNumber(document.getElementById('outStockCount'), out);
+    document.getElementById('whCount').textContent = warehouses.length;
+
+    const critical = products.filter(p => p.stock === 0);
+    const warning = products.filter(p => p.stock > 0 && p.stock < lowStockThreshold);
+    const alertsContainer = document.getElementById('alertsContainer');
+    alertsContainer.innerHTML = '';
+    [...critical, ...warning].forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'alert-row';
+      const cls = p.stock === 0 ? 'stop' : 'hold';
+      div.innerHTML = `<span>${p.name}</span> <b class="${cls} mono">${p.stock} left</b>`;
+      div.addEventListener('click', () => openDrawer(p));
+      alertsContainer.appendChild(div);
+    });
+    if (!critical.length && !warning.length){
+      alertsContainer.innerHTML = '<div class="alert-row ok"><i class="fas fa-circle-check"></i>&nbsp; All stock levels are healthy</div>';
+    }
+    renderMovementMini();
+  }
+
+  const copy = {
+    dashboard:['Inventory dashboard','Live stock levels across every warehouse'],
+    products:['Products','Manage your product catalogue'],
+    cart:['My cart','Review items before you check out'],
+    orders:['My orders','Track your deliveries in real time'],
+    deliveries:['Deliveries','Who ordered, where it is going and its live status'],
+    suppliers:['Suppliers','Vendors and purchase terms'],
+    warehouses:['Warehouses','Capacity by location'],
+    movement:['Stock movement','Every unit in and out'],
+    reports:['Reports','Analytics and performance'],
+    settings:['Settings','System preferences']
+  };
+
+  function switchTab(tab){
+    if (currentUser && !ROLE_TABS[currentUser.role].includes(tab)) tab = 'dashboard';
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + tab).classList.add('active');
+    document.querySelectorAll('.menu li').forEach(li => li.classList.toggle('active', li.dataset.tab === tab));
+    document.getElementById('viewTitle').textContent = copy[tab][0];
+    document.getElementById('viewSub').textContent = copy[tab][1];
+    if (tab === 'dashboard'){ refreshDashboard(); renderWarehouses(); }
+    if (tab === 'products') renderTable();
+    if (tab === 'cart') renderCart();
+    if (tab === 'orders') renderOrders();
+    if (tab === 'deliveries') renderDeliveries();
+    if (tab === 'suppliers') renderSuppliers();
+    if (tab === 'warehouses') renderWarehouses();
+    if (tab === 'movement') renderMovementView();
+    if (tab === 'reports') renderReports();
+    if (tab === 'settings') renderSettingsForm();
+  }
+
+  document.querySelectorAll('.menu li').forEach(item => {
+    item.addEventListener('click', () => switchTab(item.dataset.tab));
+  });
+  document.querySelectorAll('[data-goto]').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.goto));
+  });
+
+  function setDarkMode(on){
+    document.body.classList.toggle('dark', on);
+    document.querySelector('#modeToggle i').className = on ? 'fas fa-sun' : 'fas fa-moon';
+    document.getElementById('modeLabel').textContent = on ? 'Light mode' : 'Dark mode';
+    const settingsToggle = document.getElementById('darkToggleSettings');
+    if (settingsToggle) settingsToggle.checked = on;
+  }
+  document.getElementById('modeToggle').addEventListener('click', () => setDarkMode(!document.body.classList.contains('dark')));
+
+  /* =========================================================
+     LOGIN / ROLES
+  ========================================================= */
+  function applyRole(){
+    if (!currentUser) return;
+    const allowed = ROLE_TABS[currentUser.role];
+    document.querySelectorAll('.menu li').forEach(li => { li.style.display = allowed.includes(li.dataset.tab) ? '' : 'none'; });
+    document.body.classList.toggle('read-only', currentUser.role === 'buyer');
+    document.getElementById('userChip').innerHTML = `<b>${currentUser.name}</b><span class="role-tag">${ROLE_LABELS[currentUser.role]}</span>`;
+    updateCartBadge();
+  }
+
+  document.querySelectorAll('.role-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedRole = card.dataset.role;
+    });
+  });
+
+  function attemptLogin(){
+    const name = document.getElementById('loginName').value.trim();
+    const err = document.getElementById('loginError');
+    if (!selectedRole){ err.querySelector('span').textContent = 'Choose a role to continue.'; err.style.display = 'flex'; return; }
+    if (!name){ err.querySelector('span').textContent = 'Enter your name to continue.'; err.style.display = 'flex'; return; }
+    err.style.display = 'none';
+    currentUser = { name, role: selectedRole };
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appRoot').style.display = 'block';
+    applyRole();
+    switchTab('dashboard');
+    toast(`Welcome, ${name} — signed in as ${ROLE_LABELS[selectedRole]}`, 'go');
+  }
+  document.getElementById('loginBtn').addEventListener('click', attemptLogin);
+  document.getElementById('loginName').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    const wasName = currentUser ? currentUser.name : '';
+    currentUser = null; selectedRole = null;
+    cart = []; updateCartBadge();
+    deliveryDraft = blankDraft();
+    closeDrawer();
+    document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('loginName').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    document.body.classList.remove('read-only');
+    document.getElementById('appRoot').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+  });
+
+  // ---- init ----
+  renderTable();
+  renderSuppliers();
+  renderWarehouses();
+  renderMovementView();
+  renderMovementMini();
+  renderReports();
+  renderSettingsForm();
+  refreshDashboard();
+  setInterval(tickDeliveries, 1000);
+})();
+</script>
+</body>
+</html>
